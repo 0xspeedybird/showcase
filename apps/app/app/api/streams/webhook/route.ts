@@ -13,7 +13,6 @@ export async function POST(request: Request) {
   const supabase = await createServerClient();
 
   try {
-
     const body = await request.json().catch(() => null);
 
     if (!body) {
@@ -55,7 +54,7 @@ export async function POST(request: Request) {
         ([, value]) =>
           value !== "" &&
           value !== null &&
-          (!Array.isArray(value) || value.length > 0)
+          (!Array.isArray(value) || value.length > 0),
       )
       .reduce<Record<string, any>>((acc, [key, value]) => {
         acc[key] = value;
@@ -64,6 +63,7 @@ export async function POST(request: Request) {
 
     const response = {
       rtmp_output_url: data?.output_stream_url,
+      output_playback_id: data?.output_playback_id,
       pipeline: data?.pipeline_id?.key,
       pipeline_id: data?.pipeline_id?.id,
       pipeline_parameters: filteredPipelineParams,

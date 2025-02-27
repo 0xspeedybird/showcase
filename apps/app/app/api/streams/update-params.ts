@@ -10,9 +10,8 @@ export async function updateParams({
   host: string;
   streamKey: string;
 }) {
-  console.log("updateParams", body, host);
   const credentials = Buffer.from(
-    process.env.USERNAME_PASSWORD as string
+    process.env.USERNAME_PASSWORD as string,
   ).toString("base64");
 
   const response = await fetch(
@@ -24,10 +23,8 @@ export async function updateParams({
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
-    }
+    },
   );
-
-  console.log("response", response);
 
   const status = response.status;
 

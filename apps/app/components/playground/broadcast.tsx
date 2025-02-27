@@ -3,149 +3,362 @@ import {
   DisableVideoIcon,
   EnableAudioIcon,
   EnableVideoIcon,
-  EnterFullscreenIcon,
-  ExitFullscreenIcon,
   LoadingIcon,
   OfflineErrorIcon,
   PictureInPictureIcon,
   SettingsIcon,
   StartScreenshareIcon,
-  StopIcon,
   StopScreenshareIcon,
 } from "@livepeer/react/assets";
 import * as Broadcast from "@livepeer/react/broadcast";
 import * as Popover from "@radix-ui/react-popover";
 import { cn } from "@repo/design-system/lib/utils";
-import { CheckIcon, ChevronDownIcon, XIcon } from "lucide-react";
-import React from "react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  XIcon,
+  Minimize2,
+  Maximize,
+  Camera,
+  SwitchCamera,
+} from "lucide-react";
+import React, { useState, useEffect } from "react";
 
 import { toast } from "sonner";
+import { useIsMobile } from "@repo/design-system/hooks/use-mobile";
 
 export function BroadcastWithControls({
   ingestUrl,
+  className,
+  onCollapse,
+  isCollapsed,
+  audio = false,
 }: {
   ingestUrl: string | null;
+  className?: string;
+  onCollapse?: (collapsed: boolean) => void;
+  isCollapsed?: boolean;
+  audio?: boolean;
 }) {
-  return !ingestUrl ? (
-    <BroadcastLoading
-      title="Invalid stream key"
-      description="The stream key provided was invalid. Please check and try again."
-    />
-  ) : (
-    <>
-      <Broadcast.Root
-        onError={(error) =>
-          error?.type === "permissions"
-            ? toast.error(
-                "You must accept permissions to broadcast. Please try again."
-              )
-            : null
-        }
-        forceEnabled={true}
-        audio={false}
-        aspectRatio={16 / 9}
-        ingestUrl={ingestUrl}
+  const [isPiP, setIsPiP] = useState(false);
+  const videoId = "live-video";
+  const [localCollapsed, setLocalCollapsed] = useState(false);
+  const collapsed = isCollapsed ?? localCollapsed;
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    const videoEl = document.getElementById(videoId) as HTMLVideoElement | null;
+    if (!videoEl) return;
+
+    const onEnterPiP = () => {
+      setIsPiP(true);
+    };
+
+    const onLeavePiP = () => {
+      setIsPiP(false);
+    };
+
+    videoEl.addEventListener("enterpictureinpicture", onEnterPiP);
+    videoEl.addEventListener("leavepictureinpicture", onLeavePiP);
+
+    return () => {
+      videoEl.removeEventListener("enterpictureinpicture", onEnterPiP);
+      videoEl.removeEventListener("leavepictureinpicture", onLeavePiP);
+    };
+  }, []);
+
+  if (!ingestUrl) {
+    return (
+      <BroadcastLoading
+        title="Invalid stream key"
+        description="The stream key provided was invalid. Please check and try again."
+      />
+    );
+  }
+
+  return (
+    <Broadcast.Root
+      onError={error =>
+        error?.type === "permissions"
+          ? toast.error(
+              "You must accept permissions to broadcast. Please try again.",
+            )
+          : null
+      }
+      forceEnabled={true}
+      noIceGathering={true}
+      audio={audio}
+      aspectRatio={16 / 9}
+      ingestUrl={ingestUrl}
+    >
+      <Broadcast.Container
+        id={videoId}
+        className={cn(
+          "text-white/50 overflow-visible rounded-sm bg-transparent border-0 relative",
+          className,
+          isPiP ? "hidden" : "",
+          !collapsed
+            ? "w-full h-full"
+            : isMobile
+              ? "!w-full !h-12 bg-[#161616] rounded-2xl"
+              : "!w-12 !h-12 rounded-full",
+        )}
+        style={collapsed && !isMobile ? { width: "3rem", height: "3rem" } : {}}
+        onClick={e => collapsed && e.stopPropagation()}
       >
-        <Broadcast.Container className="w-full h-full text-white/50 overflow-hidden rounded-sm bg-gray-950">
-          <Broadcast.Video
-            title="Live stream"
-            className="w-full h-full text-white/50"
-          />
-          <Broadcast.LoadingIndicator className="w-full relative h-full">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-              <LoadingIcon className="w-8 h-8 animate-spin" />
-            </div>
-            <BroadcastLoading />
-          </Broadcast.LoadingIndicator>
-          <Broadcast.ErrorIndicator
-            matcher="not-permissions"
-            className="absolute select-none inset-0 text-center bg-gray-950 flex flex-col items-center justify-center gap-4 duration-1000 data-[visible=true]:animate-in data-[visible=false]:animate-out data-[visible=false]:fade-out-0 data-[visible=true]:fade-in-0"
+        <Broadcast.Video
+          title="Live stream"
+          className={cn("w-full h-full object-cover", collapsed && "opacity-0")}
+        />
+
+        {collapsed ? (
+          <button
+            onClick={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              onCollapse?.(!collapsed) ?? setLocalCollapsed(!collapsed);
+            }}
+            className={cn(
+              "flex items-center cursor-pointer absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-50",
+              isMobile
+                ? "w-full h-12 pl-2 pr-4 bg-[#161616] rounded-2xl justify-between"
+                : "w-full h-full",
+            )}
           >
-            <OfflineErrorIcon className="h-[120px] w-full sm:flex hidden" />
-            <div className="flex flex-col gap-1">
-              <div className="text-2xl font-bold">Broadcast failed</div>
-              <div className="text-sm text-gray-100">
-                There was an error with broadcasting - it is retrying in the
-                background.
-              </div>
-            </div>
-          </Broadcast.ErrorIndicator>
-          <Broadcast.Controls className="bg-gradient-to-b gap-1 px-3 md:px-3 py-1.5 flex-col-reverse flex from-black/20 via-80% via-black/30 duration-1000 to-black/60 data-[visible=true]:animate-in data-[visible=false]:animate-out data-[visible=false]:fade-out-0 data-[visible=true]:fade-in-0">
-            <div className="flex justify-between gap-4">
-              <div className="flex flex-1 items-center gap-3">
-                <Broadcast.VideoEnabledTrigger className="w-6 h-6 hover:scale-110 transition flex-shrink-0">
-                  <Broadcast.VideoEnabledIndicator asChild matcher={false}>
-                    <DisableVideoIcon className="w-full h-full text-white/50" />
-                  </Broadcast.VideoEnabledIndicator>
-                  <Broadcast.VideoEnabledIndicator asChild matcher={true}>
-                    <EnableVideoIcon className="w-full h-full text-white/50" />
-                  </Broadcast.VideoEnabledIndicator>
-                </Broadcast.VideoEnabledTrigger>
-                <Broadcast.AudioEnabledTrigger className="w-6 h-6 hover:scale-110 transition flex-shrink-0">
-                  <Broadcast.AudioEnabledIndicator asChild matcher={false}>
-                    <DisableAudioIcon className="w-full h-full text-white/50" />
-                  </Broadcast.AudioEnabledIndicator>
-                  <Broadcast.AudioEnabledIndicator asChild matcher={true}>
-                    <EnableAudioIcon className="w-full h-full text-white/50" />
-                  </Broadcast.AudioEnabledIndicator>
-                </Broadcast.AudioEnabledTrigger>
-              </div>
-              <div className="flex sm:flex-1 md:flex-[1.5] justify-end items-center gap-2.5">
-                <Broadcast.ScreenshareTrigger className="w-6 h-6 hover:scale-110 transition flex-shrink-0">
-                  <Broadcast.ScreenshareIndicator asChild>
-                    <StopScreenshareIcon className="w-full h-full text-white/50" />
-                  </Broadcast.ScreenshareIndicator>
-
-                  <Broadcast.ScreenshareIndicator matcher={false} asChild>
-                    <StartScreenshareIcon className="w-full h-full text-white/50" />
-                  </Broadcast.ScreenshareIndicator>
-                </Broadcast.ScreenshareTrigger>
-
-                <Broadcast.FullscreenTrigger className="w-6 h-6 hover:scale-110 transition flex-shrink-0">
-                  <Broadcast.FullscreenIndicator asChild>
-                    <ExitFullscreenIcon className="w-full h-full text-white/50" />
-                  </Broadcast.FullscreenIndicator>
-
-                  <Broadcast.FullscreenIndicator matcher={false} asChild>
-                    <EnterFullscreenIcon className="w-full h-full text-white/50" />
-                  </Broadcast.FullscreenIndicator>
-                </Broadcast.FullscreenTrigger>
-              </div>
-            </div>
-          </Broadcast.Controls>
-
-          <Broadcast.LoadingIndicator asChild matcher={false}>
-            <div className="absolute overflow-hidden py-1 px-2 rounded-full top-1 left-1 bg-black/50 flex items-center backdrop-blur">
-              <Broadcast.StatusIndicator
-                matcher="live"
-                className="flex gap-2 items-center"
+            <div className="flex items-center gap-3">
+              <div
+                className={cn(
+                  "flex items-center justify-center border border-white/10 rounded-full",
+                  isMobile
+                    ? "px-4 py-2 bg-[linear-gradient(120.63deg,rgba(232,232,232,0.05)_31.4%,rgba(130,130,130,0.05)_85.12%)]"
+                    : "p-2 bg-transparent",
+                )}
               >
-                <div className="bg-red-500 animate-pulse h-1.5 w-1.5 rounded-full" />
-                <span className="text-xs select-none">LIVE</span>
-              </Broadcast.StatusIndicator>
-
-              <Broadcast.StatusIndicator
-                className="flex gap-2 items-center"
-                matcher="pending"
-              >
-                <div className="bg-white/80 h-1.5 w-1.5 rounded-full animate-pulse" />
-                <span className="text-xs select-none">PENDING</span>
-              </Broadcast.StatusIndicator>
-
-              <Broadcast.StatusIndicator
-                className="flex gap-2 items-center"
-                matcher="idle"
-              >
-                <div className="bg-white/80 h-1.5 w-1.5 rounded-full" />
-                <span className="text-xs select-none">IDLE</span>
-              </Broadcast.StatusIndicator>
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse mr-1.5" />
+                <Camera className="w-4 h-4 text-white/50" />
+              </div>
+              {isMobile && (
+                <span className="text-sm text-white font-medium">
+                  Input Video
+                </span>
+              )}
             </div>
-          </Broadcast.LoadingIndicator>
-        </Broadcast.Container>
-      </Broadcast.Root>
-    </>
+            {isMobile && (
+              <div className="flex items-center gap-3">
+                <CameraSwitchButton />
+                <div className="w-[1px] h-4 bg-white/10" />
+                <button
+                  onClick={e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onCollapse?.(!collapsed) ?? setLocalCollapsed(!collapsed);
+                  }}
+                  className="p-1"
+                >
+                  <Maximize className="w-5 h-5 text-white/50" />
+                </button>
+              </div>
+            )}
+          </button>
+        ) : (
+          <>
+            <div
+              className="absolute top-2 right-2 z-50 block"
+              style={{ pointerEvents: "auto" }}
+            >
+              <button
+                onClick={e => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onCollapse?.(true) ?? setLocalCollapsed(true);
+                }}
+                className="p-2 hover:scale-110 transition cursor-pointer"
+                aria-label="Collapse stream"
+              >
+                <Minimize2 className="w-4 h-4 text-white/50" />
+              </button>
+            </div>
+
+            <Broadcast.LoadingIndicator className="w-full relative h-full">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <LoadingIcon className="w-8 h-8 animate-spin" />
+              </div>
+              <BroadcastLoading />
+            </Broadcast.LoadingIndicator>
+            <Broadcast.ErrorIndicator
+              matcher="not-permissions"
+              className={cn(
+                "absolute select-none inset-0 text-center bg-gray-950 flex flex-col items-center justify-center gap-4 duration-1000 data-[visible=true]:animate-in data-[visible=false]:animate-out data-[visible=false]:fade-out-0 data-[visible=true]:fade-in-0",
+                collapsed && "opacity-0",
+              )}
+            >
+              <OfflineErrorIcon className="h-[120px] w-full sm:flex hidden" />
+              <div className="flex flex-col gap-1">
+                <div className="text-2xl font-bold">Broadcast failed</div>
+                <div className="text-sm text-gray-100">
+                  There was an error with broadcasting - it is retrying in the
+                  background.
+                </div>
+              </div>
+            </Broadcast.ErrorIndicator>
+            <Broadcast.Controls
+              className={cn(
+                "bg-gradient-to-b gap-1 px-3 md:px-3 py-1.5 flex-col-reverse flex from-black/20 via-80% via-black/30 to-black/60",
+                collapsed && "opacity-0",
+              )}
+            >
+              <div className="flex justify-between gap-4">
+                <div className="flex flex-1 items-center gap-3">
+                  <Broadcast.VideoEnabledTrigger className="w-6 h-6 hover:scale-110 transition flex-shrink-0">
+                    <Broadcast.VideoEnabledIndicator asChild matcher={false}>
+                      <DisableVideoIcon className="w-full h-full text-white/50" />
+                    </Broadcast.VideoEnabledIndicator>
+                    <Broadcast.VideoEnabledIndicator asChild matcher={true}>
+                      <EnableVideoIcon className="w-full h-full text-white/50" />
+                    </Broadcast.VideoEnabledIndicator>
+                  </Broadcast.VideoEnabledTrigger>
+                  <Broadcast.AudioEnabledTrigger className="w-6 h-6 hover:scale-110 transition flex-shrink-0">
+                    <Broadcast.AudioEnabledIndicator asChild matcher={false}>
+                      <DisableAudioIcon className="w-full h-full text-white/50" />
+                    </Broadcast.AudioEnabledIndicator>
+                    <Broadcast.AudioEnabledIndicator asChild matcher={true}>
+                      <EnableAudioIcon className="w-full h-full text-white/50" />
+                    </Broadcast.AudioEnabledIndicator>
+                  </Broadcast.AudioEnabledTrigger>
+                </div>
+                <div className="flex sm:flex-1 md:flex-[1.5] justify-end items-center gap-2.5">
+                  <CameraSwitchButton />
+
+                  <Broadcast.ScreenshareTrigger className="w-6 h-6 hover:scale-110 transition flex-shrink-0">
+                    <Broadcast.ScreenshareIndicator asChild>
+                      <StopScreenshareIcon className="w-full h-full text-white/50" />
+                    </Broadcast.ScreenshareIndicator>
+
+                    <Broadcast.ScreenshareIndicator matcher={false} asChild>
+                      <StartScreenshareIcon className="w-full h-full text-white/50" />
+                    </Broadcast.ScreenshareIndicator>
+                  </Broadcast.ScreenshareTrigger>
+
+                  <Broadcast.PictureInPictureTrigger className="w-6 h-6 hover:scale-110 transition flex-shrink-0">
+                    <PictureInPictureIcon className="w-full h-full text-white/50" />
+                  </Broadcast.PictureInPictureTrigger>
+                </div>
+              </div>
+            </Broadcast.Controls>
+
+            <Broadcast.LoadingIndicator asChild matcher={false}>
+              <div
+                className={cn(
+                  "absolute overflow-hidden py-1 px-2 rounded-full top-1 left-1 bg-black/50 flex items-center backdrop-blur",
+                  collapsed && "opacity-0",
+                )}
+              >
+                <Broadcast.StatusIndicator
+                  matcher="live"
+                  className="flex gap-2 items-center"
+                >
+                  <div className="bg-red-500 animate-pulse h-1.5 w-1.5 rounded-full" />
+                  <span className="text-xs select-none">LIVE</span>
+                </Broadcast.StatusIndicator>
+
+                <Broadcast.StatusIndicator
+                  className="flex gap-2 items-center"
+                  matcher="pending"
+                >
+                  <div className="bg-white/80 h-1.5 w-1.5 rounded-full animate-pulse" />
+                  <span className="text-xs select-none">PENDING</span>
+                </Broadcast.StatusIndicator>
+
+                <Broadcast.StatusIndicator
+                  className="flex gap-2 items-center"
+                  matcher="idle"
+                >
+                  <div className="bg-white/80 h-1.5 w-1.5 rounded-full" />
+                  <span className="text-xs select-none">IDLE</span>
+                </Broadcast.StatusIndicator>
+              </div>
+            </Broadcast.LoadingIndicator>
+          </>
+        )}
+      </Broadcast.Container>
+    </Broadcast.Root>
   );
 }
+
+const CameraSwitchButton = () => {
+  const context = Broadcast.useBroadcastContext("CurrentSource", undefined);
+  const state = Broadcast.useStore(context.store, state => state);
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  useEffect(() => {
+    if (state.video) {
+      state.__controlsFunctions.requestDeviceListInfo();
+    }
+  }, [state.video]);
+
+  const videoDevices = state.mediaDevices?.filter(
+    device => device.kind === "videoinput",
+  );
+
+  if (!videoDevices?.length) {
+    return null;
+  }
+
+  const currentCameraId = state.mediaDeviceIds.videoinput;
+  const currentIndex = videoDevices.findIndex(
+    d => d.deviceId === currentCameraId,
+  );
+
+  return (
+    <button
+      onClick={async e => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        try {
+          if (isMobile) {
+            const currentTrack = state.mediaStream?.getVideoTracks()[0];
+            const isFrontCamera =
+              currentTrack?.getSettings()?.facingMode === "user" ||
+              currentTrack?.label?.toLowerCase().includes("front");
+
+            state.mediaStream?.getTracks().forEach(track => track.stop());
+
+            const newStream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                facingMode: {
+                  exact: isFrontCamera ? "environment" : "user",
+                },
+              },
+            });
+
+            const newTrack = newStream.getVideoTracks()[0];
+
+            state.__controlsFunctions.updateMediaStream(newStream);
+          } else {
+            const nextIndex =
+              currentIndex === -1
+                ? 0
+                : (currentIndex + 1) % videoDevices.length;
+            const nextCameraId = videoDevices[nextIndex]?.deviceId;
+
+            if (nextCameraId) {
+              state.__controlsFunctions.requestMediaDeviceId(
+                nextCameraId as any,
+                "videoinput",
+              );
+            }
+          }
+        } catch (err) {
+          console.error("Error during camera switch:", err);
+        }
+      }}
+      className="w-6 h-6 hover:scale-110 transition flex-shrink-0"
+    >
+      <SwitchCamera className="w-full h-full text-white/50" />
+    </button>
+  );
+};
 
 export const BroadcastLoading = ({
   title,
@@ -179,6 +392,60 @@ export const BroadcastLoading = ({
   </div>
 );
 
+export const Settings = React.forwardRef(
+  (
+    { className }: { className?: string },
+    ref: React.Ref<HTMLButtonElement> | undefined,
+  ) => {
+    return (
+      <Popover.Root>
+        <Popover.Trigger ref={ref} asChild>
+          <button
+            type="button"
+            className={className}
+            aria-label="Stream settings"
+            onClick={e => e.stopPropagation()}
+          >
+            <SettingsIcon />
+          </button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            className="w-60 rounded-md bg-black/50 border border-white/50 backdrop-blur-md p-3 shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+            side="top"
+            alignOffset={-70}
+            align="end"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-2">
+              <p className="text-white/90 font-medium text-sm mb-1">
+                Stream settings
+              </p>
+
+              <div className="gap-2 flex-col flex">
+                <label
+                  className="text-xs text-white/90 font-medium"
+                  htmlFor="cameraSource"
+                >
+                  Camera ('c' to rotate)
+                </label>
+                <SourceSelectComposed name="cameraSource" type="videoinput" />
+              </div>
+            </div>
+            <Popover.Close
+              className="rounded-full h-5 w-5 inline-flex items-center justify-center absolute top-2.5 right-2.5 outline-none"
+              aria-label="Close"
+            >
+              <XIcon />
+            </Popover.Close>
+            <Popover.Arrow className="fill-white/50" />
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+    );
+  },
+);
+
 export const SourceSelectComposed = React.forwardRef(
   (
     {
@@ -186,17 +453,17 @@ export const SourceSelectComposed = React.forwardRef(
       type,
       className,
     }: { name: string; type: "audioinput" | "videoinput"; className?: string },
-    ref: React.Ref<HTMLButtonElement> | undefined
+    ref: React.Ref<HTMLButtonElement> | undefined,
   ) => (
     <Broadcast.SourceSelect name={name} type={type}>
-      {(devices) =>
+      {devices =>
         devices ? (
           <>
             <Broadcast.SelectTrigger
               ref={ref}
               className={cn(
                 "flex w-full items-center overflow-hidden justify-between rounded-sm px-1 outline-1 outline-white/50 text-xs leading-none h-7 gap-1 outline-none disabled:opacity-70 disabled:cursor-not-allowed",
-                className
+                className,
               )}
               aria-label={type === "audioinput" ? "Audio input" : "Video input"}
             >
@@ -215,7 +482,7 @@ export const SourceSelectComposed = React.forwardRef(
               <Broadcast.SelectContent className="overflow-hidden bg-black rounded-sm">
                 <Broadcast.SelectViewport className="p-1">
                   <Broadcast.SelectGroup>
-                    {devices?.map((device) => (
+                    {devices?.map(device => (
                       <RateSelectItem
                         key={device.deviceId}
                         value={device.deviceId}
@@ -233,7 +500,7 @@ export const SourceSelectComposed = React.forwardRef(
         )
       }
     </Broadcast.SourceSelect>
-  )
+  ),
 );
 
 const RateSelectItem = React.forwardRef<
@@ -244,7 +511,7 @@ const RateSelectItem = React.forwardRef<
     <Broadcast.SelectItem
       className={cn(
         "text-xs leading-none rounded-sm flex items-center h-7 pr-[35px] pl-[25px] relative select-none data-[disabled]:pointer-events-none data-[highlighted]:outline-none data-[highlighted]:bg-white/20",
-        className
+        className,
       )}
       {...props}
       ref={forwardedRef}

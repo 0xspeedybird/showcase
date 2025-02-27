@@ -15,18 +15,14 @@ import {
   useSidebar,
 } from "@repo/design-system/components/ui/sidebar";
 import { useIsMobile } from "@repo/design-system/hooks/use-mobile";
-import {
-  DoorOpenIcon,
-  LifeBuoyIcon,
-  Map,
-  SendIcon,
-  SquareTerminalIcon,
-  VideoIcon,
-  BookIcon
-} from "lucide-react";
+import { BookIcon, LightbulbIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { DiscordLogoIcon } from "@radix-ui/react-icons";
+import User from "components/header/user";
+import { cn } from "@repo/design-system/lib/utils";
 
 type GlobalSidebarProperties = {
   readonly children: ReactNode;
@@ -82,16 +78,20 @@ export const GlobalSidebar = ({ children }: GlobalSidebarProperties) => {
   const router = useRouter();
   const isMobile = useIsMobile();
 
+  const { user } = usePrivy();
+  // TODO: remove non-admin restriction as soon as pre-validation is available
+  const isLivepeerEmail = user?.email?.address?.endsWith("@livepeer.org");
+
   const data: {
-    streams: NavItem[];
+    /*streams: NavItem[];
     pipelines: NavItem[];
-    settings: NavItem[];
+    settings: NavItem[];*/
     footer: NavItem[];
   } = {
-    pipelines: [
+    /*pipelines: [
       {
         title: "Create Pipeline",
-        url: `?tab=create`,
+        url: `/pipelines/create`,
         icon: SquareTerminalIcon,
         isActive: true,
       },
@@ -100,6 +100,16 @@ export const GlobalSidebar = ({ children }: GlobalSidebarProperties) => {
         url: `/explore`,
         icon: Map,
       },
+      ...(isLivepeerEmail
+        ? [
+            {
+              title: "My Pipelines",
+              url: `/pipelines`,
+              icon: ListIcon,
+              isActive: true,
+            },
+          ]
+        : []),
     ],
     streams: [
       {
@@ -121,8 +131,14 @@ export const GlobalSidebar = ({ children }: GlobalSidebarProperties) => {
         url: `?gateway=true`,
         icon: DoorOpenIcon,
       },
-    ],
+    ],*/
     footer: [
+      {
+        title: "Join Community",
+        url: "https://discord.gg/livepeer",
+        external: true,
+        icon: DiscordLogoIcon,
+      },
       {
         title: "Documentation",
         url: "https://pipelines.livepeer.org/docs/technical",
@@ -130,34 +146,32 @@ export const GlobalSidebar = ({ children }: GlobalSidebarProperties) => {
         icon: BookIcon,
       },
       {
-        title: "Support",
-        url: "https://discord.gg/livepeer",
-        external: true,
-        icon: LifeBuoyIcon,
-      },
-      {
         title: "Feedback",
         url: "https://livepeer.notion.site/15f0a348568781aab037c863d91b05e2",
         external: true,
-        icon: SendIcon,
+        icon: LightbulbIcon,
       },
     ],
   };
 
   const labelMap: Record<string, string> = {
-    streams: "Streams",
+    /*streams: "Streams",
     pipelines: "Pipelines",
-    settings: "Settings",
+    settings: "Settings",*/
     footer: "More",
   };
 
   return (
     <>
-      <Sidebar variant="inset" collapsible="icon">
+      <Sidebar collapsible="icon">
         <SidebarHeader>
           <Link
             href="/"
-            className="flex items-center justify-between mt-4 ml-2"
+            className={cn(
+              "flex items-center justify-between ml-2",
+              !_sidebar.openMobile && "-mt-8",
+              isMobile && (_sidebar.openMobile ? "ml-8 mt-8" : "ml-4 mt-4"),
+            )}
           >
             {_sidebar.open ? (
               <div className="flex items-center gap-2">
@@ -246,11 +260,22 @@ export const GlobalSidebar = ({ children }: GlobalSidebarProperties) => {
                   {labelMap[key] || key.charAt(0).toUpperCase() + key.slice(1)}
                 </SidebarGroupLabel>
               )}
-              <SidebarMenu>
-                {items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
+              <SidebarMenu
+                className={cn(
+                  "flex flex-col items-start w-full",
+                  !_sidebar.open && "items-center",
+                )}
+              >
+                {items.map(item => (
+                  <SidebarMenuItem key={item.title} className="w-full">
                     <SidebarMenuButton
-                      className="hover:bg-muted cursor-pointer"
+                      className={cn(
+                        "hover:bg-muted cursor-pointer",
+                        key === "footer" &&
+                          isMobile &&
+                          _sidebar.openMobile &&
+                          "ml-4",
+                      )}
                       onClick={() => {
                         if (item.external) {
                           window.open(item.url, "_blank");
@@ -271,6 +296,23 @@ export const GlobalSidebar = ({ children }: GlobalSidebarProperties) => {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+                {key === "footer" && (
+                  <SidebarMenuItem
+                    key="My Account"
+                    className="w-full flex items-center justify-center cursor-pointer"
+                  >
+                    <SidebarMenuButton
+                      className={cn(
+                        "hover:bg-muted cursor-pointer",
+                        isMobile && _sidebar.openMobile && "ml-4",
+                      )}
+                      asChild
+                      tooltip="My Account"
+                    >
+                      <User />
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
               </SidebarMenu>
             </SidebarGroup>
           ))}

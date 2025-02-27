@@ -1,27 +1,28 @@
 import { User } from "@privy-io/react-auth";
-import { isProduction } from "./env";
-import mixpanel from 'mixpanel-browser';
 interface TrackProperties {
   [key: string]: any;
 }
 
+let lastTrackedEvents: { [key: string]: number } = {};
+const DEBOUNCE_TIME = 1000; // 1000ms debounce
+
 function getStoredIds() {
-  if (typeof window === 'undefined') return {};
-  
+  if (typeof window === "undefined") return {};
+
   return {
-    distinctId: localStorage.getItem('mixpanel_distinct_id'),
-    sessionId: localStorage.getItem('mixpanel_session_id'),
-    userId: localStorage.getItem('mixpanel_user_id'),
+    distinctId: localStorage.getItem("mixpanel_distinct_id"),
+    sessionId: localStorage.getItem("mixpanel_session_id"),
+    userId: localStorage.getItem("mixpanel_user_id"),
   };
 }
 
 function getBrowserInfo() {
-  if (typeof window === 'undefined') return {};
+  if (typeof window === "undefined") return {};
 
   return {
     $os: navigator.platform,
-    $browser: navigator.userAgent.split('(')[0].trim(),
-    $device: /mobile/i.test(navigator.userAgent) ? 'Mobile' : 'Desktop',
+    $browser: navigator.userAgent.split("(")[0].trim(),
+    $device: /mobile/i.test(navigator.userAgent) ? "Mobile" : "Desktop",
     $current_url: window.location.href,
     $referrer: document.referrer,
     user_agent: navigator.userAgent,
@@ -31,11 +32,26 @@ function getBrowserInfo() {
 const track = async (
   eventName: string,
   eventProperties?: TrackProperties,
-  user?: User
+  user?: User,
 ) => {
+  const now = Date.now();
+  const lastTracked = lastTrackedEvents[eventName] || 0;
+
+  // Skip if event was tracked less than DEBOUNCE_TIME ago
+  if (now - lastTracked < DEBOUNCE_TIME) {
+    console.log(
+      `Debouncing ${eventName}, last tracked ${now - lastTracked}ms ago`,
+    );
+    return false;
+  }
 
   const { distinctId, sessionId, userId } = getStoredIds();
   const browserInfo = getBrowserInfo();
+
+  if (!sessionId) {
+    console.log("No sessionId found, skipping event tracking");
+    return;
+  }
 
   const data = {
     event: eventName,
@@ -48,7 +64,7 @@ const track = async (
     },
   };
 
-  console.log("Tracking event:", eventName);
+  console.log("Tracking event:", eventName, "for sessionId:", sessionId);
 
   try {
     const response = await fetch(`/api/mixpanel`, {
@@ -62,8 +78,13 @@ const track = async (
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    // Update last tracked time after successful tracking
+    lastTrackedEvents[eventName] = now;
+    return true;
   } catch (error) {
     console.error("Error tracking event:", error);
+    return false;
   }
 };
 

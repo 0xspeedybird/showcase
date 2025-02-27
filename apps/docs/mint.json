@@ -75,31 +75,30 @@
       ]
     },
     {
-      "group": "Pipeline Development",
+      "group": "Get Started",
       "pages": [
-        "technical/develop-pipeline/create-your-first-pipeline",
-        "technical/develop-pipeline/local-testing",
-        "technical/reference/local-testing-comfystream-ui"
+        "technical/getting-started/install-comfystream",
+        "technical/getting-started/publish-pipeline"
       ]
     },
     {
       "group": "Custom Nodes",
       "pages": [
         "technical/reference/available-nodes",
-        "technical/develop-pipeline/add-sd-loras",
-        "technical/reference/custom-node-installation"
+        "technical/reference/advanced-node-usage",
+        "technical/reference/performance-recommendations"
       ]
     },
     {
-      "group": "Reference",
+    "group": "Reference",
       "pages": ["knowledge-base/reference/pricing"]
     },
     {
       "group": "Reference",
       "pages": [
-        "technical/reference/performance-recommendations",
-        "technical/reference/develop-runpod",
-        "technical/reference/tunneling-with-ssh"
+        "technical/reference/download-models",
+        "technical/reference/add-sd-loras",
+        "technical/reference/pipelines-vs-workflows"
       ]
     }
   ],
